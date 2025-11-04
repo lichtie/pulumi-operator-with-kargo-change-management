@@ -1,0 +1,3 @@
+name: cluster-setup
+runtime: nodejs
+description: Kubernetes cluster setup with service accounts and RBAC

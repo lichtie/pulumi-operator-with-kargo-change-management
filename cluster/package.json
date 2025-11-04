@@ -1,0 +1,13 @@
+{
+  "name": "cluster",
+  "description": "Help me create an EKS cluster",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "dependencies": {
+    "@pulumi/aws": "^7.8.0",
+    "@pulumi/pulumi": "^3.201.0"
+  }
+}

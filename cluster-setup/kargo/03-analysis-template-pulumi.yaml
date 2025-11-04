@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: pulumi-stack-success
+  namespace: kargo-managed-stack
+spec:
+  args:
+    - name: commit-id
+    - name: pulumi-token
+      valueFrom:
+        secretKeyRef:
+          name: secrets
+          key: PULUMI_ACCESS_TOKEN
+  metrics:
+    - name: check-pulumi-update
+      interval: 30s
+      successCondition: result.updates[0].result == "succeeded"
+      failureCondition: result.updates[0].result == "failed"
+      failureLimit: 30  # 30 retries * 30s = 15 minutes
+      provider:
+        web:
+          url: https://api.pulumi.com/api/stacks/elisabeth-demo/security-scanner/dev/updates?pageSize=1&page=1
+          headers:
+            - key: Authorization
+              value: "token {{args.pulumi-token}}"
+            - key: Accept
+              value: application/json
+          jsonPath: "{$}"

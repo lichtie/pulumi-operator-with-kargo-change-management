@@ -1,0 +1,32 @@
+apiVersion: pulumi.com/v1
+kind: Stack
+metadata:
+  name: security-scanner-dev
+  namespace: default
+spec:
+  serviceAccountName: pulumi
+  envRefs:
+    PULUMI_ACCESS_TOKEN:
+      type: Secret
+      secret:
+        name: pulumi-api-secret
+        key: accessToken
+    AWS_REGION:
+      type: Literal
+      literal:
+        value: us-east-1
+    AWS_ACCESS_KEY_ID:
+      type: Secret
+      secret:
+        name: pulumi-aws-secret
+        key: awsAccessKeyId
+    AWS_SECRET_ACCESS_KEY:
+      type: Secret
+      secret:
+        name: pulumi-aws-secret
+        key: secretAccessKey
+  stack: elisabeth-demo/security-scanner/dev
+  projectRepo: https://github.com/lichtie/security-scanner
+  repoDir: .
+  branch: main
+  destroyOnFinalize: true

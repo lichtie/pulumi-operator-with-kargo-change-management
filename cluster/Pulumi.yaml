@@ -1,0 +1,10 @@
+name: cluster
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+description: Help me create an EKS cluster
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: https://www.pulumi.com/ai/api/project/5eb5b0b3-9b44-4f9e-9e93-500f69fb4e3a.zip

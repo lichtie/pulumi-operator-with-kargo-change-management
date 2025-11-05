@@ -50,6 +50,8 @@ spec:
   verification:
     analysisTemplates:
       - name: pulumi-stack-success
-        args:
-          - name: commit-id
-            value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
+    args:
+      - name: commit-id
+        value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
+      - name: stackName
+        value: dev

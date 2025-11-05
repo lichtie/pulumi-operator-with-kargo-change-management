@@ -1,20 +1,22 @@
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
 metadata:
-  name: dev
+  name: qa
   namespace: kargo-managed-stack
   annotations:
-    kargo.akuity.io/color: indigo
+    kargo.akuity.io/color: purple
 spec:
-  # Subscribe directly to the Warehouse for automatic deployments
   requestedFreight:
     - origin:
         kind: Warehouse
         name: security-scan-repo
       sources:
-        direct: true
+        direct: false
+        stages:
+          - dev
+          - dev2
 
-  # Update stacks/dev.yaml with the latest commit from freight
+  # Update stacks/qa.yaml with the latest commit from freight
   promotionTemplate:
     spec:
       steps:
@@ -26,7 +28,7 @@ spec:
                 path: ./manifests
         - uses: yaml-update
           config:
-            path: ./manifests/stacks/dev.yaml
+            path: ./manifests/stacks/qa.yaml
             updates:
               - key: spec.commit
                 value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
@@ -34,7 +36,7 @@ spec:
           as: commit
           config:
             path: ./manifests
-            message: 'Update dev to ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}'
+            message: 'Update qa to ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}'
         - uses: git-push
           config:
             path: ./manifests
@@ -47,6 +49,6 @@ spec:
       - name: commit-id
         value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
       - name: stackName
-        value: dev
+        value: qa
       - name: previewOrUpdate
         value: update

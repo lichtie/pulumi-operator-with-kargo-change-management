@@ -260,9 +260,6 @@ const argoCDApp = new k8s.apiextensions.CustomResource(
     metadata: {
       name: "security-scanner",
       namespace: "argocd",
-      annotations: {
-        "kargo.akuity.io/authorized-stage": "kargo-managed-stack:dev",
-      },
     },
     spec: {
       project: "default",

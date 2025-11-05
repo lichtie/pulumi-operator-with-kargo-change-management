@@ -31,6 +31,7 @@ spec:
               - key: spec.commit
                 value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
         - uses: git-commit
+          as: commit
           config:
             path: ./manifests
             message: 'Update dev to ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}'
@@ -38,10 +39,17 @@ spec:
           config:
             path: ./manifests
             targetBranch: main
+        - uses: argocd-update
+          config:
+            apps:
+              - name: security-scanner
+                sources:
+                  - repoURL: https://github.com/lichtie/kargo-manifests
+                    desiredRevision: ${{ outputs.commit.commit }}
 
-  # verification:
-  #   analysisTemplates:
-  #     - name: pulumi-stack-success
-  #       args:
-  #         - name: commit-id
-  #           value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
+  verification:
+    analysisTemplates:
+      - name: pulumi-stack-success
+        args:
+          - name: commit-id
+            value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}

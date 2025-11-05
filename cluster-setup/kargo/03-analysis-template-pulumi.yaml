@@ -13,10 +13,8 @@ spec:
           key: PULUMI_ACCESS_TOKEN
   metrics:
     - name: check-pulumi-update
-      interval: 30s
-      successCondition: result.updates[0].result == "succeeded"
-      failureCondition: result.updates[0].result == "failed"
-      failureLimit: 30  # 30 retries * 30s = 15 minutes
+      initialDelay: 5m
+      successCondition: result.updates[0].result == "succeeded" && result.updates[0].environment["git.head"] == "{{args.commit-id}}"
       provider:
         web:
           url: https://api.pulumi.com/api/stacks/elisabeth-demo/security-scanner/dev/updates?pageSize=1&page=1

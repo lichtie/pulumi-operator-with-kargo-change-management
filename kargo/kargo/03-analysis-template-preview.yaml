@@ -15,7 +15,7 @@ spec:
   metrics:
     - name: check-pulumi-update
       initialDelay: 5m
-      successCondition: result.updates[0].info.result == "succeeded" && result.updates[0].info.environment["git.head"] == "{{args.commit-id}}" && result.updates[0].info.kind == "Pupdate"
+      successCondition: result.updates[len(result.updates) - 1].info.result == "succeeded" && result.updates[len(result.updates) - 1].info.environment["git.head"] == "{{args.commit-id}}" && result.updates[len(result.updates) - 1].info.kind == "Pupdate"
       provider:
         web:
           url: https://api.pulumi.com/api/stacks/elisabeth-demo/security-scanner/{{args.stackName}}/updates/latest/previews

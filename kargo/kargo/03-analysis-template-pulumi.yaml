@@ -11,7 +11,7 @@ spec:
     - name: pulumi-token
       valueFrom:
         secretKeyRef:
-          name: secrets
+          name: pulumisecret
           key: PULUMI_ACCESS_TOKEN
   metrics:
     - name: check-pulumi-update

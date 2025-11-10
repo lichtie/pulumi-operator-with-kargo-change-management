@@ -1,13 +1,14 @@
 config:
-  cluster-setup:clusterStack: elisabeth-demo/cluster/dev
-  cluster-setup:pulumiApiToken:
-    secure: AAABANKAIZuHrsC/XNW2r+cIOnlJpoYuPcIT+ZAItXEeZevEl37+1ORli7cHfF6pYkUP4yf/fP2IlgNML5H5wwPuWMBu6aeZvgbqpQ==
-  cluster-setup:awsSecretAccessKey:
-    secure: AAABAG1QzYfx8JqzANhhmCKGfPgx2+jQ5ny1dsOZ9ZRHuatGmfan/BSncscaQxCEXVtu8dO7P5wTpMG8wBPPREhYqdnXZOVL
-  cluster-setup:awsAccessKeyId:
-    secure: AAABAHjwraTa7lg730mY/ALDJfIWtw5lV94EeOUQu99j1DIGw6TsWqfPFim+dSFiDdSaMg==
-  cluster-setup:kargoAdminPasswordHash:
-    secure: AAABAPJ9SAqDiHpFNyTsOIY/UJvxuigVmmvYL32Dvnod2nsw1rOTwQSiPl7gAgwN9Y4yoZlCmSD4xwkkT0cQzvE2AP0hc4lzEsH5/KyATFQNxk47bO9B26qWFEg=
-  cluster-setup:kargoTokenSigningKey:
-    secure: AAABAPMp/eV5VW9r0XvDTcfnagy1e+z+J19iMS4e5zIj492m9FaINhV/gAkletaSG0xit4jWF8YODRA0iSs0UQ==
-  cluster-setup:stackManifestsRepo: https://github.com/lichtie/kargo-manifests
+  kargo-setup:clusterStack: elisabeth-demo/cluster/dev
+  kargo-setup:pulumiApiToken:
+    secure: AAABACKcIGoUtXdmZl3cmBtSVzytA4AHAyG088ldGRA1I7PPAuBdD+V9+Yj+x6tL9WNTfzvb97/Sp6nbv6R6ff2J3pURsKwlP18aHg==
+  kargo-setup:awsSecretAccessKey:
+    secure: AAABAC7MogfThMKld8adkfWvlskpB88+5WGTh3ix5rgevYLPnZgPJxQefh1GB7pe72eGfBkNNFoKHFnAOZogorkcDt5cCkV3
+  kargo-setup:awsAccessKeyId:
+    secure: AAABAEl9L72yqOrJqZSrwXORuqG3xLUTnNDR1DECTpdoOB7Uca6Gavi+wwfUFvoo+SaxlQ==
+  kargo-setup:kargoAdminPasswordHash:
+    secure: AAABAKVEKH+ud+PJYVYb77YKUyZ5UJR/aiGr2GYt8pRh435wSaaPwDg+0Ga4yEJK0RPYyHy7IODxC7E/NaBQePby5yheIg5gWQxTpkxfeNrRLlvW0Yv+Zj/QNk8=
+  kargo-setup:kargoTokenSigningKey:
+    secure: AAABAI/xl4VApJlvejvh5IRMwALgfD0YFiGijeK1Ivqnm6XY4jtDP4I4VLeXoOr3IGBaF6Xcbu+TuIwTdRQB2w==
+  kargo-setup:stackManifestsRepo: https://github.com/lichtie/kargo-manifests
+  kargo-setup:prereqsStack: elisabeth-demo/cluster-setup/dev

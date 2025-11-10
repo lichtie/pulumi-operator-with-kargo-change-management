@@ -12,7 +12,9 @@ spec:
         kind: Warehouse
         name: security-scan-repo
       sources:
-        direct: true
+        direct: false
+        stages:
+          - approvalgatedev
 
   # Update stacks/devpreview.yaml with the latest commit from freight
   promotionTemplate:

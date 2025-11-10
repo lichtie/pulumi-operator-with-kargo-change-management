@@ -14,8 +14,7 @@ spec:
       sources:
         direct: false
         stages:
-          - dev
-          - dev2
+          - approvalgateqa
 
   # Update stacks/qapreview.yaml with the latest commit from freight
   promotionTemplate:

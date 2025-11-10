@@ -12,5 +12,8 @@ spec:
         name: dev
       autoPromotionEnabled: true
     - stageSelector:
-        name: dev1
+        name: dev2
+      autoPromotionEnabled: true
+    - stageSelector:
+        name: qapreview
       autoPromotionEnabled: true

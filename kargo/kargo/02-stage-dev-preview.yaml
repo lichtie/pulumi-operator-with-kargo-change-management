@@ -42,11 +42,9 @@ spec:
 
   verification:
     analysisTemplates:
-      - name: pulumi-stack-success
+      - name: pulumi-stack-preview-success
     args:
       - name: commit-id
         value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
       - name: stackName
         value: dev
-      - name: previewOrUpdate
-        value: preview

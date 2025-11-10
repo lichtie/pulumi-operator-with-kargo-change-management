@@ -70,7 +70,7 @@ const pulumiOperator = new k8s.helm.v3.Release(
   "pulumi-kubernetes-operator",
   {
     chart: "oci://ghcr.io/pulumi/helm-charts/pulumi-kubernetes-operator",
-    version: "2.2.0",
+    version: "2.3.0",
     namespace: pulumiOperatorNamespace.metadata.name,
   },
   { provider: k8sProvider, dependsOn: [pulumiOperatorNamespace] }

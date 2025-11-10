@@ -1,0 +1,52 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev2
+  namespace: kargo-managed-stack
+  annotations:
+    kargo.akuity.io/color: indigo
+spec:
+  # Subscribe directly to the Warehouse for automatic deployments
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: security-scan-repo
+      sources:
+        direct: false
+        stages:
+          - dev2preview
+
+  # Update stacks/dev2.yaml with the latest commit from freight
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/lichtie/kargo-manifests
+            checkout:
+              - branch: main
+                path: ./manifests
+        - uses: yaml-update
+          config:
+            path: ./manifests/stacks/dev2.yaml
+            updates:
+              - key: spec.commit
+                value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./manifests
+            message: 'Update dev2 to ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}'
+        - uses: git-push
+          config:
+            path: ./manifests
+            targetBranch: main
+
+  verification:
+    analysisTemplates:
+      - name: pulumi-stack-update-success
+    args:
+      - name: commit-id
+        value: ${{ commitFrom("https://github.com/lichtie/security-scanner").ID }}
+      - name: stackName
+        value: dev2

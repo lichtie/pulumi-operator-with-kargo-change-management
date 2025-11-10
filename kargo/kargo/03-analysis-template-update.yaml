@@ -18,7 +18,7 @@ spec:
       successCondition: result.updates[0].result == "succeeded" && result.updates[0].environment["git.head"] == "{{args.commit-id}}" && result.updates[0].kind == "update"
       provider:
         web:
-          url: https://api.pulumi.com/api/stacks/elisabeth-demo/security-scanner/{{args.stackName}}/updates/latest/previews
+          url: https://api.pulumi.com/api/stacks/elisabeth-demo/security-scanner/{{args.stackName}}/updates?pageSize=1&page=1
           headers:
             - key: Authorization
               value: "token {{args.pulumi-token}}"

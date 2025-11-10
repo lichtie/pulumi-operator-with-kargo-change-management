@@ -13,8 +13,7 @@ spec:
       sources:
         direct: false
         stages:
-          - dev
-          - dev2
+          - qapreview
 
   # Update stacks/qa.yaml with the latest commit from freight
   promotionTemplate:

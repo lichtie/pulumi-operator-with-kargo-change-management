@@ -9,6 +9,9 @@ spec:
         name: devpreview
       autoPromotionEnabled: true
     - stageSelector:
+        name: dev2preview
+      autoPromotionEnabled: true
+    - stageSelector:
         name: dev
       autoPromotionEnabled: true
     - stageSelector:

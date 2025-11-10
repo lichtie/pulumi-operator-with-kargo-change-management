@@ -1,0 +1,16 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: kargo-managed-stack
+  namespace: kargo-managed-stack
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: devpreview
+      autoPromotionEnabled: true
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+    - stageSelector:
+        name: dev1
+      autoPromotionEnabled: true

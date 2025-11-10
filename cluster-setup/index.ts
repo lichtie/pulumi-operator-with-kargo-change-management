@@ -1,6 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
+// ============================================================================
+// STEP 2: PREREQUISITES
+// ============================================================================
+// Install core dependencies: Service accounts, Pulumi operator, cert-manager,
+// ArgoCD, and Argo Rollouts - all required before Kargo installation
+
 // Get the kubeconfig from the cluster stack
 const config = new pulumi.Config();
 const clusterStackRef = new pulumi.StackReference(
@@ -190,39 +196,7 @@ const argoRollouts = new k8s.yaml.ConfigFile(
   { provider: k8sProvider, dependsOn: [argoRolloutsNamespace] }
 );
 
-// Install Kargo using Helm with admin credentials
-const kargoNamespace = new k8s.core.v1.Namespace(
-  "kargo-ns",
-  {
-    metadata: {
-      name: "kargo",
-    },
-  },
-  { provider: k8sProvider }
-);
-
-const kargo = new k8s.helm.v3.Release(
-  "kargo",
-  {
-    chart: "oci://ghcr.io/akuity/kargo-charts/kargo",
-    namespace: kargoNamespace.metadata.name,
-    values: {
-      api: {
-        adminAccount: {
-          passwordHash: config.requireSecret("kargoAdminPasswordHash"),
-          tokenSigningKey: config.requireSecret("kargoTokenSigningKey"),
-        },
-        service: {
-          type: "LoadBalancer",
-        },
-      },
-    },
-    waitForJobs: true,
-  },
-  { provider: k8sProvider, dependsOn: [kargoNamespace] }
-);
-
-// Create ArgoCD AppProject
+// Create ArgoCD AppProject for application management
 const argoCDProject = new k8s.apiextensions.CustomResource(
   "default-project",
   {
@@ -284,6 +258,10 @@ const argoCDApp = new k8s.apiextensions.CustomResource(
   { provider: k8sProvider, dependsOn: [argoCDProject] }
 );
 
+// Export the k8sProvider and kubeconfig for use by other stacks
+export { k8sProvider };
+export { kubeconfig };
+
 // Export the service account details
 export const serviceAccountName = serviceAccount.metadata.name;
 export const serviceAccountNamespace = serviceAccount.metadata.namespace;
@@ -292,26 +270,7 @@ export const secretName = accessToken.metadata.name;
 
 // Export installation status
 export const pulumiOperatorStatus = pulumiOperator.status;
-export const kargoStatus = kargo.status;
+export const certManagerReady = certManager.ready;
+export const argoCDReady = argoCD.ready;
+export const argoRolloutsReady = argoRollouts.ready;
 export const argoCDAppName = argoCDApp.metadata.name;
-
-// Export Kargo API server address
-export const kargoApiAddress = pulumi
-  .all([kargoNamespace.metadata.name])
-  .apply(([ns]) =>
-    k8s.core.v1.Service.get(
-      "kargo-api-svc",
-      pulumi.interpolate`${ns}/kargo-api`,
-      { provider: k8sProvider }
-    ).status.apply((status) => {
-      if (
-        status?.loadBalancer?.ingress &&
-        status.loadBalancer.ingress.length > 0
-      ) {
-        const ingress = status.loadBalancer.ingress[0];
-        const address = ingress.hostname || ingress.ip;
-        return `https://${address}`;
-      }
-      return "LoadBalancer address pending...";
-    })
-  );

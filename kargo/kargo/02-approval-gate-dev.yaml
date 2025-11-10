@@ -6,7 +6,8 @@ metadata:
   annotations:
     kargo.akuity.io/color: red
 spec:
-  # Subscribe directly to the Warehouse for automatic deployments
+  # This is an approval gate - freight from the warehouse waits here for manual approval
+  # before being promoted to downstream stages (devpreview → dev)
   requestedFreight:
     - origin:
         kind: Warehouse
@@ -14,7 +15,14 @@ spec:
       sources:
         direct: true
 
-  # Update stacks/devpreview.yaml with the latest commit from freight
+  # Minimal promotion template to enable manual approval requirement
+  # Without autoPromotionEnabled, promotions must be manually triggered
   promotionTemplate:
     spec:
       steps:
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/lichtie/kargo-manifests
+            checkout:
+              - branch: main
+                path: ./approval-check

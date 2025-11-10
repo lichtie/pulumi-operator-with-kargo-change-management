@@ -1,38 +1,35 @@
-# Cluster Setup
+# Kargo Setup with Pulumi
 
-This Pulumi project sets up a Kubernetes cluster with the following components:
-- Pulumi Kubernetes Operator (v2.0.0)
-- cert-manager (v1.19.0)
-- ArgoCD (stable)
-- Argo Rollouts (latest)
-- Kargo (via Helm)
+This directory contains:
+1. **Pulumi program** (`index.ts`) - Deploys Kargo and its dependencies to a Kubernetes cluster
+2. **Kargo manifests** (`kargo/` subdirectory) - Stage definitions, approval gates, and analysis templates
+
+## Components Deployed
+
+The Pulumi program deploys:
+- **Kargo** (via Helm) - Progressive delivery orchestration platform
+- Dependencies (installed separately via cluster-setup):
+  - Pulumi Kubernetes Operator (PKO)
+  - cert-manager
+  - ArgoCD
+  - Argo Rollouts
 
 ## Prerequisites
 
+- Kubernetes cluster (set up via `cluster-setup/` directory first)
 - Pulumi CLI installed
 - kubectl configured
 - htpasswd utility (for generating Kargo password hash)
 - openssl (for generating secrets)
 
-## Setup
+## Part 1: Deploy Kargo via Pulumi
 
 1. **Configure the cluster stack reference:**
    ```bash
    pulumi config set clusterStack <your-cluster-stack>
    ```
 
-2. **Set AWS credentials (already configured in Pulumi.dev.yaml):**
-   ```bash
-   pulumi config set --secret awsAccessKeyId <your-access-key-id>
-   pulumi config set --secret awsSecretAccessKey <your-secret-access-key>
-   ```
-
-3. **Set Pulumi API token (already configured in Pulumi.dev.yaml):**
-   ```bash
-   pulumi config set --secret pulumiApiToken <your-token>
-   ```
-
-4. **Generate and configure Kargo admin credentials:**
+2. **Generate and configure Kargo admin credentials:**
    ```bash
    ./generate-kargo-secrets.sh
    ```
@@ -44,87 +41,100 @@ This Pulumi project sets up a Kubernetes cluster with the following components:
    - Configure both secrets in Pulumi
    - Display the plaintext password (save it securely!)
 
-   Alternatively, you can manually generate and set the secrets:
-   ```bash
-   pass=$(openssl rand -base64 48 | tr -d "=+/" | head -c 32)
-   echo "Password: $pass"
-   hashed_pass=$(htpasswd -bnBC 10 "" $pass | tr -d ':\n')
-   signing_key=$(openssl rand -base64 48 | tr -d "=+/" | head -c 32)
+   The generated password will be saved to `.env` file.
 
-   pulumi config set --secret kargoAdminPasswordHash "$hashed_pass"
-   pulumi config set --secret kargoTokenSigningKey "$signing_key"
+3. **Deploy Kargo:**
+   ```bash
+   pulumi up
    ```
 
-## Deployment
+   This installs Kargo via Helm into the `kargo` namespace with admin credentials configured.
 
-Deploy all components:
+## Part 2: Apply Kargo Manifests
+
+After Kargo is deployed, configure the progressive delivery pipeline:
+
+1. **Create Kargo Project via UI:**
+   - Access the Kargo UI (see "Accessing Kargo" section below for LoadBalancer URL)
+   - Create a new project named `kargo-managed-stack`
+   - This automatically creates the namespace
+
+2. **Create Pulumi Secret via UI:**
+   - In the Kargo UI, navigate to Project Settings → Secrets
+   - Create a new secret named `pulumisecret`
+   - Add key: `PULUMI_ACCESS_TOKEN` with your Pulumi API token as the value
+
+
+3. **Edit GitHub credentials:**
+   - Open `kargo/01-github-credentials.yaml`
+   - Replace the placeholder values with your GitHub username, PAT, and repository URL
+
+4. **Apply all Kargo manifests:**
+   ```bash
+   kubectl apply -f kargo/
+   ```
+
+   This creates:
+   - Approval gates for controlled progression
+   - Preview stages (devpreview, dev2preview, qapreview)
+   - Deployment stages (dev, dev2, qa)
+   - Analysis templates for Pulumi verification
+   - Project configuration with auto-promotion policies
+
+See the detailed documentation in `kargo/README.md` for the complete pipeline architecture and usage.
+
+## Accessing Kargo
+
+Use the password from `.env` file (or the one displayed during `generate-kargo-secrets.sh`) to log in as admin.
+
+**For AWS-hosted clusters:**
+
+Get the LoadBalancer URL:
 ```bash
-pulumi up
+kubectl get svc kargo-api -n kargo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 ```
 
-This will install:
-- **Pulumi Kubernetes Operator**: Creates the pulumi-kubernetes-operator namespace and installs the operator
-- **cert-manager**: Creates the cert-manager namespace and installs cert-manager with CRDs
-- **ArgoCD**: Creates the argocd namespace and installs ArgoCD
-- **Argo Rollouts**: Creates the argo-rollouts namespace and installs Argo Rollouts
-- **Kargo**: Creates the kargo namespace and installs Kargo with admin credentials
+Access the Kargo UI at: `http://<loadbalancer-url>`
+- **Username**: admin
+- **Password**: (from `.env` file)
 
-## Accessing Services
-
-### ArgoCD
-Get the initial admin password:
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-
-Port-forward to access the UI:
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-
-Then access at: https://localhost:8080
-
-### Kargo
-Use the password generated by `generate-kargo-secrets.sh` to log in as admin.
+**For local/development clusters:**
 
 Port-forward to access the UI:
 ```bash
 kubectl port-forward svc/kargo-api -n kargo 8081:80
 ```
+Then access at: http://localhost:8081
+
+## Using the Pipeline
+
+Once Kargo is deployed and manifests are applied:
+
+1. **View the pipeline** in Kargo UI
+2. **Approve freight** at approval gates
+3. **Monitor** automatic promotions through preview and dev stages
+4. **Manually promote** to QA when ready
+
+See `kargo/README.md` for detailed usage instructions.
 
 ## Cleanup
 
-Remove all resources:
+Remove Kargo and manifests:
 ```bash
+# Remove Kargo manifests
+kubectl delete -f kargo/
+
+# Delete the project (via Kargo UI or kubectl)
+kubectl delete project kargo-managed-stack -n kargo-managed-stack
+
+# Remove Kargo namespace (if not automatically removed with project deletion)
+kubectl delete namespace kargo-managed-stack
+
+# Destroy Pulumi stack (removes Kargo installation)
 pulumi destroy
 ```
 
-## Installation Equivalents
+## Related
 
-This Pulumi setup is equivalent to running:
-
-```bash
-# Pulumi Kubernetes Operator
-helm install --create-namespace -n pulumi-kubernetes-operator pulumi-kubernetes-operator \
-  oci://ghcr.io/pulumi/helm-charts/pulumi-kubernetes-operator --version 2.0.0
-
-# cert-manager
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.0/cert-manager.yaml
-
-# ArgoCD
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# Argo Rollouts
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
-
-# Kargo
-helm install kargo \
-  oci://ghcr.io/akuity/kargo-charts/kargo \
-  --namespace kargo \
-  --create-namespace \
-  --set api.adminAccount.passwordHash=$hashed_pass \
-  --set api.adminAccount.tokenSigningKey=$signing_key \
-  --wait
-```
+- **Cluster Setup**: See `../cluster-setup/README.md` for setting up the base cluster with PKO, ArgoCD, etc.
+- **Kargo Manifests**: See `kargo/README.md` for detailed pipeline configuration and usage

@@ -20,17 +20,23 @@ Approval Gate Dev (approvalgatedev) - manual approval checkpoint
 Dev Preview Stages (devpreview, dev2preview) - auto-promote, run Pulumi preview
     ↓
 Dev Stages (dev, dev2) - auto-promote, run Pulumi update
+    ↓         ↓
+    ↓         └─→ Approval Gate QA Sec (approvalgateqasec) - security review checkpoint
+    ↓                     ↓
+Approval Gate QA (approvalgateqa) ←─┘
     ↓
-QA Preview Stage (qapreview) - auto-promote, run Pulumi preview
+QA Preview Stage (qapreview) - auto-promote, run Pulumi preview (requires ALL approval gates)
     ↓
-QA Stage (qa) - run Pulumi update
+QA Stage (qa) - auto-promote, run Pulumi update
 ```
 
 **Key Features:**
 - **Approval Gates**: Manual checkpoints to control progression from warehouse to downstream stages
+- **Dual Approval Gates for QA**: Requires both standard QA and security approval before QA preview
 - **Preview Stages**: Run Pulumi previews before actual deployments to validate infrastructure changes
 - **Verification**: Analysis templates check Pulumi API to verify successful previews/updates
 - **Multi-Environment**: Parallel dev and dev2 environments for testing different configurations
+- **All-Stage Availability Strategy**: QA stages require freight to pass through ALL upstream stages
 
 ## Files
 
@@ -40,7 +46,8 @@ QA Stage (qa) - run Pulumi update
 
 **Approval Gates:**
 - `02-approval-gate-dev.yaml` - Manual approval gate before dev preview stages
-- `02-approval-gate-qa.yaml` - Manual approval gate before QA stages
+- `02-approval-gate-qa.yaml` - Manual approval gate before QA stages (functional review)
+- `02-approval-gate-qa-sec.yaml` - Security approval gate before QA stages (security review)
 
 **Stage Definitions:**
 - `02-stage-dev-preview.yaml` - Dev preview stage (runs Pulumi preview)
@@ -105,6 +112,7 @@ QA Stage (qa) - run Pulumi update
    ```bash
    kubectl apply -f 02-approval-gate-dev.yaml
    kubectl apply -f 02-approval-gate-qa.yaml
+   kubectl apply -f 02-approval-gate-qa-sec.yaml
    ```
 
 4. **Apply stage definitions**:
@@ -164,9 +172,10 @@ kubectl kargo approve \
 - Run Pulumi update operations
 - Verification checks update success
 
-**4. QA Stages** (Auto-promote for preview, manual for qa):
-- `qapreview` automatically promotes
-- `qa` requires manual promotion
+**4. QA Stages** (Auto-promote for both):
+- `qapreview` automatically promotes after freight passes BOTH approval gates (approvalgateqa AND approvalgateqasec)
+- Uses `availabilityStrategy: All` to require all upstream stages
+- `qa` automatically promotes from qapreview
 
 **Via Kargo UI:**
 1. Access the Kargo UI (see parent README for LoadBalancer URL or port-forward instructions)
@@ -198,14 +207,22 @@ kubectl kargo approve \
    - Update stack files in kargo-manifests repo (e.g., `stacks/dev2.yaml`)
    - Pulumi Operator runs `pulumi up` for the stack
    - Analysis template verifies update success via Pulumi API
+   - Freight becomes available at both QA approval gates
 
-5. **QA preview runs automatically** (qapreview)
-   - Auto-promotes when dev/dev2 are stable
+5. **Dual approval gates for QA** (approvalgateqa, approvalgateqasec)
+   - Freight must be approved at BOTH gates
+   - `approvalgateqa` - functional/feature approval
+   - `approvalgateqasec` - security review approval
+   - QA preview waits for freight to pass through ALL upstream stages
+
+6. **QA preview runs automatically** (qapreview)
+   - Auto-promotes when freight passes both approval gates
+   - Uses `availabilityStrategy: All` to ensure all stages have processed the freight
    - Runs Pulumi preview for QA environment
    - Verifies preview success
 
-6. **QA deployment** (qa)
-   - Requires manual promotion from qapreview
+7. **QA deployment** (qa)
+   - Auto-promotes from qapreview
    - Runs full Pulumi update
    - Verifies deployment success
 
@@ -256,7 +273,11 @@ kubectl describe analysisrun <run-name> -n kargo-managed-stack
 
 **Freight stuck at approval gate:**
 - Check approval gate status: `kubectl describe stage approvalgatedev -n kargo-managed-stack`
-- Manually approve if needed: `kubectl kargo approve --stage=approvalgatedev --freight=<name> -n kargo-managed-stack`
+- For QA stages, check BOTH approval gates:
+  - `kubectl describe stage approvalgateqa -n kargo-managed-stack`
+  - `kubectl describe stage approvalgateqasec -n kargo-managed-stack`
+- Manually approve if needed: `kubectl kargo approve --stage=<gate-name> --freight=<name> -n kargo-managed-stack`
+- Remember: qapreview requires freight to pass through ALL stages (availabilityStrategy: All)
 
 **Stage not auto-promoting:**
 - Verify auto-promotion is enabled: Check `04-project-config.yaml`
@@ -310,6 +331,29 @@ spec:
         name: qa  # Stage name
       autoPromotionEnabled: false  # Set to false for manual promotion
 ```
+
+**Note**: The QA stage is currently set to auto-promote. If you need more control over production deployments, disable auto-promotion for the `qa` stage.
+
+### Adjust availability strategy
+
+For stages that should wait for freight to pass through specific upstream stages:
+```yaml
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: security-scan-repo
+      sources:
+        direct: false
+        availabilityStrategy: All  # Requires ALL upstream stages
+        stages:
+          - approvalgateqa
+          - approvalgateqasec
+```
+
+Options for `availabilityStrategy`:
+- `All` (default) - Freight must be available from ALL listed stages
+- `Any` - Freight needs to be available from ANY of the listed stages
 
 ### Add additional approval gates
 

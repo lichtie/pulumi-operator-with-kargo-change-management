@@ -7,12 +7,13 @@ This directory contains:
 ## Components Deployed
 
 The Pulumi program deploys:
-- **Kargo** (via Helm) - Progressive delivery orchestration platform
+- **Kargo** (via Helm) - Progressive delivery orchestration platform with OIDC authentication
 - Dependencies (installed separately via cluster-setup):
   - Pulumi Kubernetes Operator (PKO)
   - cert-manager
   - ArgoCD
   - Argo Rollouts
+  - AWS Cognito User Pool (for OIDC)
 
 ## Prerequisites
 
@@ -29,7 +30,20 @@ The Pulumi program deploys:
    pulumi config set clusterStack <your-cluster-stack>
    ```
 
-2. **Generate and configure Kargo admin credentials:**
+   This stack should have AWS Cognito configured (see `cluster-setup/README.md` for Cognito setup).
+
+2. **Configure Cognito user IDs for OIDC:**
+
+   After creating users in Cognito (see cluster-setup README), get their `sub` values and update `index.ts`:
+   ```typescript
+   users: {
+     claims: {
+       sub: ["<cognito-user-sub-1>", "<cognito-user-sub-2>"],
+     },
+   },
+   ```
+
+3. **Generate and configure Kargo admin credentials:**
    ```bash
    ./generate-kargo-secrets.sh
    ```
@@ -43,12 +57,15 @@ The Pulumi program deploys:
 
    The generated password will be saved to `.env` file.
 
-3. **Deploy Kargo:**
+4. **Deploy Kargo:**
    ```bash
    pulumi up
    ```
 
-   This installs Kargo via Helm into the `kargo` namespace with admin credentials configured.
+   This installs Kargo via Helm into the `kargo` namespace with:
+   - Admin credentials configured
+   - OIDC authentication enabled via AWS Cognito
+   - Dex (built-in auth) disabled
 
 ## Part 2: Apply Kargo Manifests
 
@@ -85,7 +102,16 @@ See the detailed documentation in `kargo/README.md` for the complete pipeline ar
 
 ## Accessing Kargo
 
-Use the password from `.env` file (or the one displayed during `generate-kargo-secrets.sh`) to log in as admin.
+Kargo is configured with OIDC authentication via AWS Cognito. You can authenticate using:
+
+**Option 1: OIDC (AWS Cognito)** - Recommended
+- Users configured in the Cognito User Pool can sign in
+- Uses OAuth 2.0 authorization code flow
+- First-time users will need to change their temporary password
+
+**Option 2: Admin credentials** - For initial setup/emergencies
+- **Username**: admin
+- **Password**: (from `.env` file or `generate-kargo-secrets.sh` output)
 
 **For AWS-hosted clusters:**
 
@@ -95,8 +121,8 @@ kubectl get svc kargo-api -n kargo -o jsonpath='{.status.loadBalancer.ingress[0]
 ```
 
 Access the Kargo UI at: `http://<loadbalancer-url>`
-- **Username**: admin
-- **Password**: (from `.env` file)
+- Click "Login with OIDC" to authenticate via Cognito
+- Or use admin credentials for direct login
 
 **For local/development clusters:**
 
@@ -105,6 +131,34 @@ Port-forward to access the UI:
 kubectl port-forward svc/kargo-api -n kargo 8081:80
 ```
 Then access at: http://localhost:8081
+
+**Note**: For OIDC to work properly, you need to:
+1. Access Kargo via the configured hostname (not localhost or IP)
+2. Ensure the hostname is configured in `cluster-setup` Pulumi config
+3. The hostname must match the callback URLs in Cognito App Client
+
+## Setting Up Custom Roles for Approvers
+
+For users authenticated via OIDC who should only have permission to approve freight at specific gates (e.g., security team members who only approve at the security gate), you can create custom roles in Kargo:
+
+![Kargo Approver Role Setup](kargo/kargo_approver_role_setup.png)
+
+**Example: Security Approver Role**
+
+Create a custom role that grants:
+- **Stage-specific approval permissions** - Limited to specific approval gates (e.g., `approvalgateqasec`)
+- **Read-only access** to other stages - Can view but not modify other parts of the pipeline
+- **Project-level scope** - Applies to the `kargo-managed-stack` project
+
+This follows the principle of least privilege, ensuring users only have the permissions they need for their specific responsibilities.
+
+**To set up custom roles:**
+1. Log in to Kargo UI as admin
+2. Navigate to Project Settings → Roles
+3. Create a new role with stage-specific permissions
+4. Assign the role to OIDC users based on their responsibilities
+
+See the screenshot in `kargo/kargo_approver_role_setup.png` for a visual guide on configuring these roles.
 
 ## Using the Pipeline
 

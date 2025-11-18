@@ -13,6 +13,10 @@ const prereqsStackRef = new pulumi.StackReference(
 );
 const kubeconfig = prereqsStackRef.requireOutput("kubeconfig");
 
+// Get Cognito OIDC configuration from the cluster stack
+const cognitoIssuerUrl = prereqsStackRef.requireOutput("cognitoIssuerUrl");
+const cognitoClientId = prereqsStackRef.requireOutput("cognitoClientId");
+
 // Create a Kubernetes provider using the kubeconfig from the prerequisites stack
 const k8sProvider = new k8s.Provider("k8s-provider", {
   kubeconfig: kubeconfig,
@@ -40,6 +44,19 @@ const kargo = new k8s.helm.v3.Release(
         adminAccount: {
           passwordHash: config.requireSecret("kargoAdminPasswordHash"),
           tokenSigningKey: config.requireSecret("kargoTokenSigningKey"),
+        },
+        oidc: {
+          enabled: true,
+          issuerURL: cognitoIssuerUrl,
+          clientID: cognitoClientId,
+          cliClientID: cognitoClientId,
+          dex: { enabled: false },
+          additionalScopes: ["profile", "email", "openid"],
+          users: {
+            claims: {
+              sub: ["YOUR_COGNITO_USER_IDs"],
+            },
+          },
         },
         service: {
           type: "LoadBalancer",

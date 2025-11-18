@@ -5,6 +5,7 @@ This Pulumi project sets up foundational components for a Kubernetes cluster:
 - cert-manager (v1.19.0)
 - ArgoCD (stable)
 - Argo Rollouts (latest)
+- AWS Cognito User Pool (for Kargo OIDC authentication)
 
 **Note**: Kargo is deployed separately via the `kargo/` directory, not by this cluster-setup project.
 
@@ -13,6 +14,7 @@ This Pulumi project sets up foundational components for a Kubernetes cluster:
 - Pulumi CLI installed
 - kubectl configured
 - Existing Kubernetes cluster (referenced via stack output)
+- AWS credentials configured (for Cognito User Pool creation)
 
 ## Setup
 
@@ -28,7 +30,19 @@ This Pulumi project sets up foundational components for a Kubernetes cluster:
    pulumi config set --secret pulumiApiToken <your-token>
    ```
 
-3. **Set AWS credentials (if needed for your cluster):**
+3. **Configure AWS region:**
+   ```bash
+   pulumi config set aws:region us-east-1  # or your preferred region
+   ```
+
+4. **Set Kargo hostname:**
+   ```bash
+   pulumi config set kargoHostname https://<your-kargo-loadbalancer-url>
+   ```
+
+   Note: You may need to run `pulumi up` first to get the LoadBalancer URL, then update this config and run `pulumi up` again.
+
+5. **Set AWS credentials (if needed for your cluster):**
    ```bash
    pulumi config set --secret awsAccessKeyId <your-access-key-id>
    pulumi config set --secret awsSecretAccessKey <your-secret-access-key>
@@ -48,6 +62,7 @@ This will install:
 - **cert-manager**: Creates the cert-manager namespace and installs cert-manager with CRDs (v1.19.0)
 - **ArgoCD**: Creates the argocd namespace and installs ArgoCD (stable version)
 - **Argo Rollouts**: Creates the argo-rollouts namespace and installs Argo Rollouts (latest)
+- **AWS Cognito User Pool**: Creates a Cognito User Pool, App Client, and Domain for Kargo OIDC authentication
 
 ## Next Steps
 
@@ -82,6 +97,43 @@ Port-forward to access the UI:
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 Then access at: https://localhost:8080
+
+## AWS Cognito Setup (for Kargo OIDC)
+
+This project creates AWS Cognito resources for Kargo OIDC authentication:
+
+**Created Resources:**
+- User Pool named `kargo-users`
+- User Pool Domain: `kargo-{stack-name}`
+- App Client configured for OAuth 2.0 authorization code flow
+
+**Exported Values:**
+After deployment, the following Cognito values are exported for use by the Kargo stack:
+- `cognitoUserPoolId` - User Pool ID
+- `cognitoUserPoolArn` - User Pool ARN
+- `cognitoClientId` - App Client ID for Kargo
+- `cognitoIssuerUrl` - OIDC issuer URL
+- `cognitoUserPoolDomain` - Hosted UI domain
+
+**Creating Users:**
+Create users via AWS Console or AWS CLI:
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id <pool-id> \
+  --username user@example.com \
+  --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true \
+  --temporary-password TempPassword123!
+```
+
+**Getting User Sub (for Kargo RBAC):**
+After user signs in for the first time:
+```bash
+aws cognito-idp admin-get-user \
+  --user-pool-id <pool-id> \
+  --username user@example.com
+```
+
+Look for the `sub` attribute in the response - you'll need this for configuring Kargo user claims.
 
 ## Cleanup
 

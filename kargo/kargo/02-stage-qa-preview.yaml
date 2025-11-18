@@ -13,8 +13,10 @@ spec:
         name: security-scan-repo
       sources:
         direct: false
+        availabilityStrategy: All
         stages:
           - approvalgateqa
+          - approvalgateqasec
 
   # Update stacks/qapreview.yaml with the latest commit from freight
   promotionTemplate:

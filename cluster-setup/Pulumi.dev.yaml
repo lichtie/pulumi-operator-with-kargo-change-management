@@ -11,3 +11,5 @@ config:
   cluster-setup:kargoTokenSigningKey:
     secure: AAABAPMp/eV5VW9r0XvDTcfnagy1e+z+J19iMS4e5zIj492m9FaINhV/gAkletaSG0xit4jWF8YODRA0iSs0UQ==
   cluster-setup:stackManifestsRepo: https://github.com/lichtie/kargo-manifests
+  cluster-setup:kargoHostname: YOUR_KARGO_LB_URL
+  aws:region: us-east-1

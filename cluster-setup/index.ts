@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
+import * as aws from "@pulumi/aws";
 
 // ============================================================================
 // STEP 2: PREREQUISITES
@@ -9,6 +10,8 @@ import * as k8s from "@pulumi/kubernetes";
 
 // Get the kubeconfig from the cluster stack
 const config = new pulumi.Config();
+const awsConfig = new pulumi.Config("aws");
+
 const clusterStackRef = new pulumi.StackReference(
   config.require("clusterStack")
 );
@@ -258,6 +261,61 @@ const argoCDApp = new k8s.apiextensions.CustomResource(
   { provider: k8sProvider, dependsOn: [argoCDProject] }
 );
 
+// Create Cognito User Pool for Kargo OIDC authentication
+const kargoUserPool = new aws.cognito.UserPool("kargoUserPool", {
+  name: "kargo-users",
+  autoVerifiedAttributes: ["email"],
+  usernameAttributes: ["email"],
+  usernameConfiguration: {
+    caseSensitive: false,
+  },
+  schemas: [
+    {
+      attributeDataType: "String",
+      name: "email",
+      required: true,
+      mutable: true,
+    },
+  ],
+  passwordPolicy: {
+    minimumLength: 8,
+    requireLowercase: true,
+    requireNumbers: true,
+    requireSymbols: true,
+    requireUppercase: true,
+  },
+});
+
+// Create User Pool Domain for hosted UI
+const kargoUserPoolDomain = new aws.cognito.UserPoolDomain(
+  "kargoUserPoolDomain",
+  {
+    domain: pulumi.interpolate`kargo-${pulumi.getStack()}`,
+    userPoolId: kargoUserPool.id,
+  }
+);
+
+// Get the Kargo hostname configuration (you'll need to provide this)
+const kargoHostname = config.get("kargoHostname") || "kargo.example.com";
+
+// Create Cognito App Client for Kargo
+const kargoAppClient = new aws.cognito.UserPoolClient("kargoAppClient", {
+  name: "kargo",
+  userPoolId: kargoUserPool.id,
+  generateSecret: false,
+  explicitAuthFlows: ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"],
+  allowedOauthFlows: ["code"],
+  allowedOauthScopes: ["email", "openid", "profile"],
+  allowedOauthFlowsUserPoolClient: true,
+  callbackUrls: [
+    pulumi.interpolate`${kargoHostname}/login`,
+    pulumi.interpolate`${kargoHostname}/auth/callback`,
+    "https://localhost/auth/callback",
+  ],
+  logoutUrls: [pulumi.interpolate`${kargoHostname}`],
+  supportedIdentityProviders: ["COGNITO"],
+});
+
 // Export the k8sProvider and kubeconfig for use by other stacks
 export { k8sProvider };
 export { kubeconfig };
@@ -274,3 +332,12 @@ export const certManagerReady = certManager.ready;
 export const argoCDReady = argoCD.ready;
 export const argoRolloutsReady = argoRollouts.ready;
 export const argoCDAppName = argoCDApp.metadata.name;
+
+// Export Cognito configuration for Kargo
+export const cognitoUserPoolId = kargoUserPool.id;
+export const cognitoUserPoolArn = kargoUserPool.arn;
+export const cognitoClientId = kargoAppClient.id;
+export const cognitoIssuerUrl = pulumi.interpolate`https://cognito-idp.${awsConfig.require(
+  "region"
+)}.amazonaws.com/${kargoUserPool.id}`;
+export const cognitoUserPoolDomain = kargoUserPoolDomain.domain;
